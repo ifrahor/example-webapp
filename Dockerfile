@@ -1,10 +1,11 @@
 # 1. Build the React frontend
 FROM node:18-alpine AS frontend-build
-WORKDIR /app
-COPY clientapp/package*.json ./clientapp/
-RUN cd clientapp && npm install
-COPY clientapp/ ./clientapp/
-RUN cd clientapp && npm run build
+WORKDIR /app/clientapp
+COPY clientapp/package*.json ./
+RUN npm install
+COPY clientapp/ ./
+RUN npm run build && \
+    if [ -d "dist" ]; then cp -r dist build; fi
 
 # 2. Build the .NET Backend
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS backend-build
