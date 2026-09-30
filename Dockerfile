@@ -1,34 +1,24 @@
-# ----------------------------------------------------
-# Stage 1: Build Frontend (React)
-# ----------------------------------------------------
-FROM node:18-alpine AS frontend-build
-WORKDIR /app
-COPY clientapp/package*.json ./
-RUN npm install
-COPY clientapp/ ./
-RUN npm run build && \
-    if [ -d "dist" ]; then cp -r dist build; fi
-
-# ----------------------------------------------------
-# Stage 2: Build Backend (.NET)
-# ----------------------------------------------------
-FROM mcr.microsoft.com/dotnet/sdk:7.0 AS backend-build
+# שלב הבנייה: מכיל .NET 8 SDK יחד עם Node.js מותקן
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY . .
-# הדגל p:PublishRunWebpack=false מונע מ-dotnet לנסות להריץ npm שאינו קיים ב-SDK
-RUN dotnet publish WebApiServer/WebApiServer.csproj \
-    -c Release \
-    -o /app/publish \
-    -p:PublishRunWebpack=false \
-    -p:BuildServerSideRenderer=false
 
-# ----------------------------------------------------
-# Stage 3: Final Runtime
-# ----------------------------------------------------
-FROM mcr.microsoft.com/dotnet/aspnet:7.0 AS final
+# התקנת Node.js 18 ו-npm עבור ה-Frontend של React
+RUN apt-get update && \
+    apt-get install -y curl && \
+    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# העתקת קבצי הפרויקט ובנייה
+COPY . .
+RUN dotnet restore "WebApiServer/WebApiServer.csproj"
+RUN dotnet publish "WebApiServer/WebApiServer.csproj" -c Release -o /app/publish
+
+# שלב ה-Runtime הסופי
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
-COPY --from=backend-build /app/publish .
-COPY --from=frontend-build /app/build ./wwwroot
+COPY --from=build /app/publish .
+
 EXPOSE 80
 ENV ASPNETCORE_URLS=http://+:80
 ENTRYPOINT ["dotnet", "WebApiServer.dll"]
