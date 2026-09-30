@@ -15,7 +15,12 @@ RUN npm run build && \
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS backend-build
 WORKDIR /src
 COPY . .
-RUN dotnet publish WebApiServer/WebApiServer.csproj -c Release -o /app/publish /p:PublishTrimmed=false
+# הדגל p:PublishRunWebpack=false מונע מ-dotnet לנסות להריץ npm שאינו קיים ב-SDK
+RUN dotnet publish WebApiServer/WebApiServer.csproj \
+    -c Release \
+    -o /app/publish \
+    -p:PublishRunWebpack=false \
+    -p:BuildServerSideRenderer=false
 
 # ----------------------------------------------------
 # Stage 3: Final Runtime
